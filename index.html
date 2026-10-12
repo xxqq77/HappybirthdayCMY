@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>生日快乐！</title>
+<title>崔梦悦心想事成</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
 
@@ -34,11 +34,10 @@
     width: 100%;
     padding: 20px;
     z-index: 10;
-    transition: opacity 0.6s ease, transform 0.6s ease;
+    transition: opacity 0.5s ease;
   }
   .screen1.fade-out {
     opacity: 0;
-    transform: scale(0.95);
     pointer-events: none;
   }
 
@@ -89,60 +88,27 @@
   }
 
   .yes-btn { background: #dbeafe; }
-  .no-btn  { background: #fce7f3; font-size: 16px; }
-
-  /* 结果容器 */
-  .result-box {
-    margin-top: 30px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 15px;
-    min-height: 100px;
-    justify-content: center;
+  
+  /* 🎯 超级小的“否”按钮 */
+  .no-btn {
+    background: #fce7f3;
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid #1a1a1a;
+    box-shadow: 0 1px 0 #1a1a1a;
+    width: auto;
+    max-width: fit-content;
+    opacity: 0.7;
+    letter-spacing: 0px;
+    margin-top: 5px;
+  }
+  .no-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 0 0 #1a1a1a;
   }
 
-  .result-text {
-    font-size: 22px;
-    font-weight: 800;
-    color: #ff7eb3;
-    opacity: 0;
-    transform: scale(0.8);
-  }
-  .result-text.show { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-  @keyframes popIn {
-    0% { opacity: 0; transform: scale(0.6); }
-    100% { opacity: 1; transform: scale(1); }
-  }
-
-  /* 结果图片 */
-  .result-img {
-    max-width: 180px;
-    height: auto;
-    opacity: 0;
-    transform: scale(0.5);
-    pointer-events: none;
-    border-radius: 16px;
-  }
-  .result-img.show {
-    animation: imgPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-  }
-  @keyframes imgPop {
-    0% { opacity: 0; transform: scale(0.3) rotate(-10deg); }
-    100% { opacity: 1; transform: scale(1) rotate(0deg); }
-  }
-
-  /* 缓慢放大效果（点“否”时使用） */
-  .result-img.slow-zoom {
-    animation: imgSlowZoom 3s ease-in-out forwards !important;
-  }
-  @keyframes imgSlowZoom {
-    0%   { opacity: 0; transform: scale(0.3); }
-    20%  { opacity: 1; transform: scale(0.5); }
-    100% { opacity: 1; transform: scale(2.2); }
-  }
-
-  /* --- 屏幕2：生日祝福界面 --- */
+  /* --- 屏幕2：生日界面 --- */
   .screen2 {
     position: absolute;
     top: 0; left: 0;
@@ -207,6 +173,47 @@
   .glow1 { width: 250px; height: 250px; background: #ffd1e8; top: 10%; left: 10%; }
   .glow2 { width: 300px; height: 300px; background: #e8d4ff; bottom: 10%; right: 10%; }
   .glow3 { width: 200px; height: 200px; background: #d4e8ff; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+  /* 🎬 “是”按钮的丝滑放大过渡层 */
+  .zoom-overlay-img {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    width: 200px;
+    height: auto;
+    z-index: 9999;
+    border-radius: 20px;
+    box-shadow: 0 0 50px rgba(255, 126, 179, 0.8);
+    transition: all 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    pointer-events: none;
+  }
+  .zoom-overlay-img.zoom-active {
+    transform: translate(-50%, -50%) scale(30);
+    opacity: 0; /* 放大到极限时淡出，露出第二页 */
+  }
+
+  /* 🦠 “否”按钮的病毒闪烁特效 */
+  .virus-img {
+    position: fixed;
+    z-index: 1000;
+    pointer-events: none;
+    animation: virusBlink 0.15s infinite alternate;
+  }
+  .virus-text {
+    position: fixed;
+    z-index: 1001;
+    font-weight: 900;
+    color: #ff0055;
+    text-shadow: 0 0 10px #ff0055, 0 0 20px #ff0055;
+    pointer-events: none;
+    animation: virusBlink 0.15s infinite alternate;
+    white-space: nowrap;
+  }
+  @keyframes virusBlink {
+    0% { opacity: 0.1; transform: scale(0.8) rotate(-10deg); }
+    100% { opacity: 1; transform: scale(1.2) rotate(10deg); }
+  }
 </style>
 </head>
 <body>
@@ -216,11 +223,7 @@
     <h1>王心淇 是你最最最最最最好的朋友吗？</h1>
     <div class="btns">
       <button class="hand-btn yes-btn" id="yesBtn">A. 是的，绝对是最好的朋友！</button>
-      <button class="hand-btn no-btn" id="noBtn">B. 不是……</button>
-    </div>
-    <div class="result-box" id="resultBox">
-      <div class="result-text" id="resultText"></div>
-      <img class="result-img" id="resultImg" src="" alt="">
+      <button class="hand-btn no-btn" id="noBtn">B. 不是…</button>
     </div>
   </div>
 
@@ -237,55 +240,76 @@
   const screen2 = document.getElementById('screen2');
   const yesBtn = document.getElementById('yesBtn');
   const noBtn = document.getElementById('noBtn');
-  const resultText = document.getElementById('resultText');
-  const resultImg = document.getElementById('resultImg');
 
   let floatingInterval = null;
 
-  // 显示结果函数
-  function showResult(text, imgSrc, useSlowZoom) {
-    resultText.classList.remove('show');
-    resultImg.classList.remove('show', 'slow-zoom');
-    void resultText.offsetWidth;
-    void resultImg.offsetWidth;
-
-    if (text) {
-      resultText.textContent = text;
-      resultText.classList.add('show');
-    }
-
-    if (imgSrc) {
-      resultImg.src = imgSrc;
-      resultImg.style.display = 'block';
-      if (useSlowZoom) {
-        resultImg.classList.add('slow-zoom');
-      } else {
-        resultImg.classList.add('show');
-      }
-    } else {
-      resultImg.style.display = 'none';
-    }
-  }
-
-  // 点“是”
+  // --- 点“是”的处理：丝滑放大过渡 ---
   yesBtn.addEventListener('click', () => {
-    // ✅ 替换为你的“是”图片链接
-    showResult('有眼光 ✨', 'https://s41.ax1x.com/2026/10/12/pnalL8A.md.png', false);
+    // 1. 创建一个覆盖全屏的图片元素
+    const zoomImg = document.createElement('img');
+    zoomImg.src = 'https://s41.ax1x.com/2026/10/12/pnalL8A.md.png';
+    zoomImg.className = 'zoom-overlay-img';
+    zoomImg.referrerPolicy = 'no-referrer'; // 防止图床防盗链
+    document.body.appendChild(zoomImg);
 
+    // 2. 触发 CSS 过渡动画（逐渐放大并淡出）
+    requestAnimationFrame(() => {
+      zoomImg.classList.add('zoom-active');
+    });
+
+    // 3. 等待放大动画进行到一半，开始淡出屏幕1
     setTimeout(() => {
       screen1.classList.add('fade-out');
-      setTimeout(() => {
-        screen1.classList.add('hidden');
-        screen2.classList.add('active');
-        startBirthdayRain();
-      }, 600);
-    }, 1500);
+    }, 600);
+
+    // 4. 动画结束后，切换到屏幕2
+    setTimeout(() => {
+      screen1.classList.add('hidden');
+      screen2.classList.add('active');
+      startBirthdayRain();
+      zoomImg.remove(); // 清理过渡图片
+    }, 1300);
   });
 
-  // 点“否”
+  // --- 点“否”的处理：全屏病毒式闪烁 ---
   noBtn.addEventListener('click', () => {
-    // ✅ 替换为你的“否”图片链接
-    showResult('我不信', 'https://s41.ax1x.com/2026/10/12/pnalqCd.png', true);
+    // 清理可能残留的病毒元素
+    document.querySelectorAll('.virus-img, .virus-text').forEach(el => el.remove());
+
+    const imgSrc = 'https://s41.ax1x.com/2026/10/12/pnalqCd.png';
+    const textStr = '我不信';
+    const imgCount = 20; // 图片数量
+    const textCount = 25; // 文字数量
+
+    // 生成闪烁的图片
+    for (let i = 0; i < imgCount; i++) {
+      const img = document.createElement('img');
+      img.src = imgSrc;
+      img.className = 'virus-img';
+      img.referrerPolicy = 'no-referrer';
+      img.style.left = Math.random() * 85 + 'vw';
+      img.style.top = Math.random() * 85 + 'vh';
+      img.style.width = (Math.random() * 50 + 30) + 'px'; // 随机大小 30px ~ 80px
+      img.style.animationDelay = (Math.random() * 0.3) + 's';
+      document.body.appendChild(img);
+    }
+
+    // 生成闪烁的文字
+    for (let i = 0; i < textCount; i++) {
+      const div = document.createElement('div');
+      div.className = 'virus-text';
+      div.textContent = textStr;
+      div.style.left = Math.random() * 80 + 'vw';
+      div.style.top = Math.random() * 80 + 'vh';
+      div.style.fontSize = (Math.random() * 25 + 15) + 'px'; // 随机字号 15px ~ 40px
+      div.style.animationDelay = (Math.random() * 0.3) + 's';
+      document.body.appendChild(div);
+    }
+
+    // 可选：5秒后自动清理，避免页面太卡（如果想永久保留可以删掉这段）
+    setTimeout(() => {
+      document.querySelectorAll('.virus-img, .virus-text').forEach(el => el.remove());
+    }, 8000);
   });
 
   // 满屏飘落“崔梦悦，生日快乐！🎂”特效
@@ -319,7 +343,7 @@
         if (el.parentNode) el.remove();
       }, 5000);
 
-    }, 350);
+    }, 300);
   }
 </script>
 </body>
