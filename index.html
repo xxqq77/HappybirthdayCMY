@@ -1,167 +1,324 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>问答</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: system-ui, -apple-system, sans-serif;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>专属小提问</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+  
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #fafafa;
+    /* 参考图的极简干净背景，带一点微弱的粉灰网格感 */
+    background-image: radial-gradient(#f1e5ec 1px, transparent 1px);
+    background-size: 24px 24px;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    position: relative;
+  }
 
-        body {
-            min-height: 100vh;
-            background-color: #fff8fb;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 48px;
-            padding: 20px;
-            overflow-x: hidden;
-        }
+  /* 全局隐藏类 */
+  .hidden { display: none !important; }
 
-        .question {
-            font-size: 24px;
-            color: #442233;
-            text-align: center;
-            font-weight: 500;
-            line-height: 1.6;
-        }
+  /* --- 屏幕1：提问界面 --- */
+  .screen1 {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 20px;
+    z-index: 10;
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .screen1.fade-out {
+    opacity: 0;
+    transform: scale(0.95);
+    pointer-events: none;
+  }
 
-        .btn-wrap {
-            display: flex;
-            align-items: center;
-            gap: 40px;
-        }
+  h1 {
+    font-size: 24px;
+    line-height: 1.6;
+    color: #5a4a54;
+    margin-bottom: 50px;
+    font-weight: 600;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+  h1 .name {
+    color: #ff7eb3;
+    font-weight: 800;
+  }
 
-        .btn-yes {
-            padding: 24px 60px;
-            font-size: 26px;
-            border: none;
-            border-radius: 18px;
-            background: linear-gradient(135deg, #ffb8d0, #ffadd6);
-            color: white;
-            font-weight: bold;
-            box-shadow: 0 8px 22px rgba(255,160,200,0.35);
-            transition: 0.2s ease;
-            cursor: pointer;
-        }
-        .btn-yes:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 28px rgba(255,160,200,0.45);
-        }
+  .btns {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
 
-        .btn-no {
-            padding: 6px 12px;
-            font-size:13px;
-            border: none;
-            border-radius: 8px;
-            background: linear-gradient(135deg, #ffb8d0, #ffadd6);
-            color: white;
-            box-shadow: 0 3px 8px rgba(255,160,200,0.25);
-            cursor: pointer;
-        }
+  /* 完美复刻 图二 第三行第一个：粉色对话气泡按钮 */
+  .yes {
+    font-size: 22px;
+    font-weight: 800;
+    color: #fff;
+    background: #f8b0c7; /* 图二第三行第一个的粉色 */
+    padding: 22px 60px;
+    border-radius: 16px;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    box-shadow: 0 8px 20px rgba(248, 176, 199, 0.4),
+                0 2px 6px rgba(248, 176, 199, 0.2);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    letter-spacing: 2px;
+  }
+  .yes:hover {
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 12px 28px rgba(248, 176, 199, 0.6);
+  }
+  .yes:active { transform: translateY(0) scale(0.96); }
+  
+  /* 按钮左下角的小尾巴（对话气泡样式） */
+  .yes::after {
+    content: '';
+    position: absolute;
+    bottom: -12px;
+    left: 24px;
+    width: 20px;
+    height: 20px;
+    background: #f8b0c7;
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+    transform: skewX(-15deg);
+  }
 
-        .result-text {
-            font-size: 28px;
-            color:#d86090;
-            font-weight: bold;
-            height:40px;
-        }
+  /* 小“否”按钮 - 极简幽灵风格 */
+  .no {
+    font-size: 13px;
+    font-weight: 600;
+    color: #b0a0ac;
+    background: transparent;
+    border: 1px solid #e0d0dc;
+    padding: 10px 28px;
+    border-radius: 50px;
+    cursor: pointer;
+    opacity: 0.8;
+    letter-spacing: 2px;
+    transition: all 0.3s ease;
+  }
+  .no:hover { border-color: #ff7eb3; color: #ff7eb3; opacity: 1; transform: scale(1.05); }
+  .no:active { transform: scale(0.95); }
 
-        canvas {
-            position: fixed;
-            top: 0;
-            left:0;
-            width:100%;
-            height:100%;
-            pointer-events:none;
-            z-index:-1;
-        }
-    </style>
+  /* 结果文字 */
+  .result {
+    margin-top: 30px;
+    font-size: 22px;
+    font-weight: 800;
+    color: #ff7eb3;
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  .result.show { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+  @keyframes popIn {
+    0% { opacity: 0; transform: scale(0.6); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  /* --- 屏幕2：生日祝福界面 --- */
+  .screen2 {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #fefdfe;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    pointer-events: none;
+  }
+  .screen2.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .header-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: #4a3e46;
+    margin-bottom: 10px;
+    z-index: 25;
+    letter-spacing: 2px;
+    text-shadow: 0 4px 10px rgba(248, 176, 199, 0.4);
+  }
+  .header-subtitle {
+    font-size: 14px;
+    color: #b0a0ac;
+    z-index: 25;
+    margin-bottom: 40px;
+    letter-spacing: 1px;
+  }
+
+  /* 满屏飘落的祝福文字 */
+  .floating-text {
+    position: absolute;
+    font-size: 20px;
+    font-weight: 800;
+    color: #ff7eb3;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 30;
+    animation: floatUp 4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    text-shadow: 0 2px 8px rgba(248, 176, 199, 0.3);
+  }
+  @keyframes floatUp {
+    0%   { transform: translateY(110vh) rotate(var(--rot)) scale(0.8); opacity: 0; }
+    10%  { opacity: 1; }
+    80%  { opacity: 0.9; }
+    100% { transform: translateY(-20vh) rotate(var(--rot)) scale(1.2); opacity: 0; }
+  }
+
+  /* 漂亮的表情贴纸（替代干巴巴的表情） */
+  .sticker {
+    position: absolute;
+    font-size: 24px;
+    pointer-events: none;
+    z-index: 22;
+    animation: floatSticker 6s ease-in-out infinite;
+    opacity: 0.8;
+  }
+  @keyframes floatSticker {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-15px) scale(1.1); }
+  }
+
+  /* 背景光晕 */
+  .bg-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.5;
+    z-index: 15;
+    pointer-events: none;
+  }
+  .glow1 { width: 250px; height: 250px; background: #ffd1e8; top: 10%; left: 10%; }
+  .glow2 { width: 300px; height: 300px; background: #e8d4ff; bottom: 10%; right: 10%; }
+  .glow3 { width: 200px; height: 200px; background: #d4e8ff; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+</style>
 </head>
 <body>
-    <canvas id="fireworkCanvas"></canvas>
-    <div class="question">王心淇是你最最最最最最好的朋友吗？</div>
-    <div class="btn-wrap">
-        <button class="btn-yes" onclick="showResult('yes')">是</button>
-        <button class="btn-no" onclick="showResult('no')">否</button>
+
+  <!-- 屏幕1：提问 -->
+  <div class="screen1" id="screen1">
+    <h1><span class="name">王心淇</span> 是你最最最最最最好的朋友吗？</h1>
+    <div class="btns">
+      <button class="yes" id="yesBtn">是</button>
+      <button class="no" id="noBtn">否</button>
     </div>
-    <div class="result-text" id="msg"></div>
+    <div class="result" id="result"></div>
+  </div>
+
+  <!-- 屏幕2：生日界面 -->
+  <div class="screen2" id="screen2">
+    <!-- 背景光晕 -->
+    <div class="bg-glow glow1"></div>
+    <div class="bg-glow glow2"></div>
+    <div class="bg-glow glow3"></div>
+    
+    <!-- 一些漂亮可爱的静态装饰贴纸 -->
+    <div class="sticker" style="top: 15%; left: 15%;">🎀</div>
+    <div class="sticker" style="top: 25%; right: 20%; animation-delay: 1s;">🌸</div>
+    <div class="sticker" style="bottom: 20%; left: 20%; animation-delay: 2s;">✨</div>
+    <div class="sticker" style="bottom: 15%; right: 15%; animation-delay: 0.5s;">🎁</div>
+    <div class="sticker" style="top: 50%; left: 10%; animation-delay: 1.5s;">🧁</div>
+    <div class="sticker" style="top: 60%; right: 10%; animation-delay: 2.5s;">🎈</div>
+
+    <!-- 核心提示文案 -->
+    <div class="header-title" id="headerTitle">好了，你可以打开了</div>
+    <div class="header-subtitle">✦ 专属你的惊喜时刻 ✦</div>
+  </div>
 
 <script>
-const canvas = document.getElementById("fireworkCanvas");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-window.addEventListener('resize',()=>{
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-})
+  const screen1 = document.getElementById('screen1');
+  const screen2 = document.getElementById('screen2');
+  const yesBtn = document.getElementById('yesBtn');
+  const noBtn = document.getElementById('noBtn');
+  const result = document.getElementById('result');
+  
+  let floatingInterval = null;
 
-let fireworks = [];
-class Particle {
-    constructor(x,y,color){
-        this.x = x;
-        this.y = y;
-        this.speed = Math.random()*5+2;
-        this.angle = Math.random()*Math.PI*2;
-        this.gravity = 0.06;
-        this.vx = Math.cos(this.angle)*this.speed;
-        this.vy = Math.sin(this.angle)*this.speed;
-        this.alpha = 1;
-        this.color = color;
-    }
-    update(){
-        this.vy += this.gravity;
-        this.x += this.vx;
-        this.y += this.vy;
-        this.alpha -=0.015;
-    }
-    draw(){
-        ctx.save();
-        ctx.globalAlpha = this.alpha;
-        ctx.beginPath();
-        ctx.arc(this.x,this.y,3,0,Math.PI*2);
-        ctx.fillStyle = this.color;
-        ctx.restore();
-    }
-}
+  // 显示结果逻辑
+  function showResult(text) {
+    result.textContent = text;
+    result.classList.remove('show');
+    void result.offsetWidth;
+    result.classList.add('show');
+  }
 
-function createFirework(x,y){
-    const colors = ['#ffb8d0','#ffadd6','#ff88bb','#ffe1f0','#f8a8cc'];
-    const color = colors[Math.floor(Math.random()*colors.length)];
-    for(let i=0;i<80;i++){
-        fireworks.push(new Particle(x,y,color))
-    }
-}
+  // 点“是”触发
+  yesBtn.addEventListener('click', () => {
+    showResult('有眼光 ✨');
+    
+    // 停顿1.2秒后，切换到屏幕2
+    setTimeout(() => {
+      screen1.classList.add('fade-out');
+      
+      setTimeout(() => {
+        screen1.classList.add('hidden');
+        screen2.classList.add('active');
+        startBirthdayRain(); // 启动全屏飘字
+      }, 600);
+    }, 1200);
+  });
 
-function animate(){
-    requestAnimationFrame(animate);
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    for(let i=fireworks.length-1;i>=0;i--){
-        fireworks[i].update();
-        fireworks[i].draw();
-        if(fireworks[i].alpha <= 0){
-            fireworks.splice(i,1);
-        }
-    }
-}
-animate();
+  // 点“否”触发
+  noBtn.addEventListener('click', () => {
+    showResult('你点错了。。🥺');
+  });
 
-function showResult(type){
-    const msgDom = document.getElementById('msg');
-    if(type === 'yes'){
-        msgDom.innerText = "有眼光";
-        createFirework(window.innerWidth/2, window.innerHeight/2);
-    }else{
-        msgDom.innerText = "你点错了。。";
-    }
-}
+  // 满屏飘落“崔梦悦，生日快乐！🎂”特效
+  function startBirthdayRain() {
+    if (floatingInterval) clearInterval(floatingInterval);
+    
+    const textStr = '崔梦悦，生日快乐！🎂';
+    const colors = ['#ff7eb3', '#f8b0c7', '#b3d4ff', '#d4b3ff', '#ffb3d4'];
+    
+    // 每次生成多个，分布在不同位置
+    floatingInterval = setInterval(() => {
+      const el = document.createElement('div');
+      el.className = 'floating-text';
+      el.textContent = textStr;
+      
+      // 随机属性
+      const randomLeft = Math.random() * 80 + 'vw';
+      const randomDelay = Math.random() * 0.5 + 's';
+      const randomScale = Math.random() * 0.6 + 0.7; // 0.7 ~ 1.3
+      const randomRotate = (Math.random() * 20 - 10) + 'deg'; // -10deg ~ 10deg
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+      
+      el.style.left = randomLeft;
+      el.style.animationDelay = randomDelay;
+      el.style.setProperty('--rot', randomRotate);
+      el.style.transform = `scale(${randomScale})`;
+      el.style.color = randomColor;
+      el.style.textShadow = `0 2px 10px ${randomColor}66`;
+      
+      screen2.appendChild(el);
+      
+      // 动画结束后移除节点，防止内存溢出
+      setTimeout(() => {
+        if (el.parentNode) el.remove();
+      }, 5000);
+      
+    }, 350); // 每0.35秒生成一个
+  }
 </script>
 </body>
 </html>
