@@ -13,7 +13,6 @@
     align-items: center;
     justify-content: center;
     background-color: #fafafa;
-    /* 参考图的极简干净背景，带一点微弱的粉灰网格感 */
     background-image: radial-gradient(#f1e5ec 1px, transparent 1px);
     background-size: 24px 24px;
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", Roboto, sans-serif;
@@ -21,7 +20,6 @@
     position: relative;
   }
 
-  /* 全局隐藏类 */
   .hidden { display: none !important; }
 
   /* --- 屏幕1：提问界面 --- */
@@ -62,19 +60,18 @@
     gap: 20px;
   }
 
-  /* 完美复刻 图二 第三行第一个：粉色对话气泡按钮 */
+  /* 粉色对话气泡按钮 */
   .yes {
     font-size: 22px;
     font-weight: 800;
     color: #fff;
-    background: #f8b0c7; /* 图二第三行第一个的粉色 */
+    background: #f8b0c7;
     padding: 22px 60px;
     border-radius: 16px;
     border: none;
     cursor: pointer;
     position: relative;
-    box-shadow: 0 8px 20px rgba(248, 176, 199, 0.4),
-                0 2px 6px rgba(248, 176, 199, 0.2);
+    box-shadow: 0 8px 20px rgba(248, 176, 199, 0.4), 0 2px 6px rgba(248, 176, 199, 0.2);
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     letter-spacing: 2px;
   }
@@ -83,8 +80,6 @@
     box-shadow: 0 12px 28px rgba(248, 176, 199, 0.6);
   }
   .yes:active { transform: translateY(0) scale(0.96); }
-  
-  /* 按钮左下角的小尾巴（对话气泡样式） */
   .yes::after {
     content: '';
     position: absolute;
@@ -97,7 +92,6 @@
     transform: skewX(-15deg);
   }
 
-  /* 小“否”按钮 - 极简幽灵风格 */
   .no {
     font-size: 13px;
     font-weight: 600;
@@ -114,19 +108,54 @@
   .no:hover { border-color: #ff7eb3; color: #ff7eb3; opacity: 1; transform: scale(1.05); }
   .no:active { transform: scale(0.95); }
 
-  /* 结果文字 */
-  .result {
+  /* 结果容器 */
+  .result-box {
     margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    min-height: 100px;
+    justify-content: center;
+  }
+
+  .result-text {
     font-size: 22px;
     font-weight: 800;
     color: #ff7eb3;
     opacity: 0;
     transform: scale(0.8);
   }
-  .result.show { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+  .result-text.show { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
   @keyframes popIn {
     0% { opacity: 0; transform: scale(0.6); }
     100% { opacity: 1; transform: scale(1); }
+  }
+
+  /* 结果图片 */
+  .result-img {
+    max-width: 160px;
+    height: auto;
+    opacity: 0;
+    transform: scale(0.5);
+    pointer-events: none;
+  }
+  .result-img.show {
+    animation: imgPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+  @keyframes imgPop {
+    0% { opacity: 0; transform: scale(0.3) rotate(-10deg); }
+    100% { opacity: 1; transform: scale(1) rotate(0deg); }
+  }
+
+  /* 缓慢放大效果（点“否”时使用） */
+  .result-img.slow-zoom {
+    animation: imgSlowZoom 3s ease-in-out forwards !important;
+  }
+  @keyframes imgSlowZoom {
+    0%   { opacity: 0; transform: scale(0.3); }
+    20%  { opacity: 1; transform: scale(0.5); }
+    100% { opacity: 1; transform: scale(2.2); }
   }
 
   /* --- 屏幕2：生日祝福界面 --- */
@@ -153,17 +182,10 @@
     font-size: 26px;
     font-weight: 800;
     color: #4a3e46;
-    margin-bottom: 10px;
+    margin-bottom: 40px;
     z-index: 25;
     letter-spacing: 2px;
     text-shadow: 0 4px 10px rgba(248, 176, 199, 0.4);
-  }
-  .header-subtitle {
-    font-size: 14px;
-    color: #b0a0ac;
-    z-index: 25;
-    margin-bottom: 40px;
-    letter-spacing: 1px;
   }
 
   /* 满屏飘落的祝福文字 */
@@ -183,20 +205,6 @@
     10%  { opacity: 1; }
     80%  { opacity: 0.9; }
     100% { transform: translateY(-20vh) rotate(var(--rot)) scale(1.2); opacity: 0; }
-  }
-
-  /* 漂亮的表情贴纸（替代干巴巴的表情） */
-  .sticker {
-    position: absolute;
-    font-size: 24px;
-    pointer-events: none;
-    z-index: 22;
-    animation: floatSticker 6s ease-in-out infinite;
-    opacity: 0.8;
-  }
-  @keyframes floatSticker {
-    0%, 100% { transform: translateY(0) scale(1); }
-    50% { transform: translateY(-15px) scale(1.1); }
   }
 
   /* 背景光晕 */
@@ -222,7 +230,10 @@
       <button class="yes" id="yesBtn">是</button>
       <button class="no" id="noBtn">否</button>
     </div>
-    <div class="result" id="result"></div>
+    <div class="result-box" id="resultBox">
+      <div class="result-text" id="resultText"></div>
+      <img class="result-img" id="resultImg" src="" alt="">
+    </div>
   </div>
 
   <!-- 屏幕2：生日界面 -->
@@ -231,18 +242,9 @@
     <div class="bg-glow glow1"></div>
     <div class="bg-glow glow2"></div>
     <div class="bg-glow glow3"></div>
-    
-    <!-- 一些漂亮可爱的静态装饰贴纸 -->
-    <div class="sticker" style="top: 15%; left: 15%;">🎀</div>
-    <div class="sticker" style="top: 25%; right: 20%; animation-delay: 1s;">🌸</div>
-    <div class="sticker" style="bottom: 20%; left: 20%; animation-delay: 2s;">✨</div>
-    <div class="sticker" style="bottom: 15%; right: 15%; animation-delay: 0.5s;">🎁</div>
-    <div class="sticker" style="top: 50%; left: 10%; animation-delay: 1.5s;">🧁</div>
-    <div class="sticker" style="top: 60%; right: 10%; animation-delay: 2.5s;">🎈</div>
 
     <!-- 核心提示文案 -->
     <div class="header-title" id="headerTitle">好了，你可以打开了</div>
-    <div class="header-subtitle">✦ 专属你的惊喜时刻 ✦</div>
   </div>
 
 <script>
@@ -250,37 +252,58 @@
   const screen2 = document.getElementById('screen2');
   const yesBtn = document.getElementById('yesBtn');
   const noBtn = document.getElementById('noBtn');
-  const result = document.getElementById('result');
+  const resultText = document.getElementById('resultText');
+  const resultImg = document.getElementById('resultImg');
+  const resultBox = document.getElementById('resultBox');
   
   let floatingInterval = null;
 
-  // 显示结果逻辑
-  function showResult(text) {
-    result.textContent = text;
-    result.classList.remove('show');
-    void result.offsetWidth;
-    result.classList.add('show');
+  // 显示结果函数
+  function showResult(text, imgSrc, useSlowZoom) {
+    // 重置状态
+    resultText.classList.remove('show');
+    resultImg.classList.remove('show', 'slow-zoom');
+    void resultText.offsetWidth;
+    void resultImg.offsetWidth;
+
+    // 设置文字
+    if (text) {
+      resultText.textContent = text;
+      resultText.classList.add('show');
+    }
+
+    // 设置图片
+    if (imgSrc) {
+      resultImg.src = imgSrc;
+      resultImg.style.display = 'block';
+      if (useSlowZoom) {
+        resultImg.classList.add('slow-zoom');
+      } else {
+        resultImg.classList.add('show');
+      }
+    } else {
+      resultImg.style.display = 'none';
+    }
   }
 
-  // 点“是”触发
+  // 点“是”
   yesBtn.addEventListener('click', () => {
-    showResult('有眼光 ✨');
+    showResult('有眼光 ✨', 'https://i.imgur.com/cV6bGa3.png', false);
     
-    // 停顿1.2秒后，切换到屏幕2
     setTimeout(() => {
       screen1.classList.add('fade-out');
       
       setTimeout(() => {
         screen1.classList.add('hidden');
         screen2.classList.add('active');
-        startBirthdayRain(); // 启动全屏飘字
+        startBirthdayRain();
       }, 600);
-    }, 1200);
+    }, 1500); // 1.5秒后跳转
   });
 
-  // 点“否”触发
+  // 点“否”
   noBtn.addEventListener('click', () => {
-    showResult('你点错了。。🥺');
+    showResult('我不信', 'https://i.imgur.com/fiASgCD.png', true);
   });
 
   // 满屏飘落“崔梦悦，生日快乐！🎂”特效
@@ -290,17 +313,15 @@
     const textStr = '崔梦悦，生日快乐！🎂';
     const colors = ['#ff7eb3', '#f8b0c7', '#b3d4ff', '#d4b3ff', '#ffb3d4'];
     
-    // 每次生成多个，分布在不同位置
     floatingInterval = setInterval(() => {
       const el = document.createElement('div');
       el.className = 'floating-text';
       el.textContent = textStr;
       
-      // 随机属性
       const randomLeft = Math.random() * 80 + 'vw';
       const randomDelay = Math.random() * 0.5 + 's';
-      const randomScale = Math.random() * 0.6 + 0.7; // 0.7 ~ 1.3
-      const randomRotate = (Math.random() * 20 - 10) + 'deg'; // -10deg ~ 10deg
+      const randomScale = Math.random() * 0.6 + 0.7;
+      const randomRotate = (Math.random() * 20 - 10) + 'deg';
       const randomColor = colors[Math.floor(Math.random() * colors.length)];
       
       el.style.left = randomLeft;
@@ -312,12 +333,11 @@
       
       screen2.appendChild(el);
       
-      // 动画结束后移除节点，防止内存溢出
       setTimeout(() => {
         if (el.parentNode) el.remove();
       }, 5000);
       
-    }, 350); // 每0.35秒生成一个
+    }, 350);
   }
 </script>
 </body>
