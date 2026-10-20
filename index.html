@@ -6,12 +6,12 @@
   作品介绍：基于Three.js打造的3D粒子特效生日蛋糕，包含动态粒子聚合、流光粒子环、流星特效、Bloom光效等视觉效果，
            点击/触摸触发粒子聚合动画，伴随背景音乐播放，适配移动端与桌面端，打造沉浸式生日祝福体验。
   技术栈：Three.js、WebGL、HTML5、JavaScript
-  【注释】代码基本分段打上了注释/如果有看不懂的可以百度
+  【新增】点击火焰吹灭蜡烛 → 冒烟浮现“崔梦悦，生日快乐” → 绽放烟花 → 蜡烛重新点亮
 -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>崔梦悦</title>
+    <title>崔梦悦，生日快乐</title>
     <style>
         body {
             margin: 0;
@@ -19,75 +19,26 @@
             font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
             background: #06060f;
         }
-
-        /* ========== 祝福文字层 ========== */
-        #wishText {
+        /* 吹蜡烛提示 */
+        #tip {
             position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 7vh;
-            text-align: center;
-            pointer-events: none;   /* 不遮挡拖拽/点击 */
-            z-index: 10;
+            left: 50%;
+            bottom: 8%;
+            transform: translateX(-50%);
+            color: rgba(255, 224, 240, 0.9);
+            font-size: 15px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 14px rgba(255, 140, 210, 0.9), 0 0 30px rgba(255, 120, 200, 0.5);
+            pointer-events: none;
             opacity: 0;
-            transform: translateY(26px);
-            filter: blur(14px);
-            transition: opacity 1.8s ease, transform 1.8s ease, filter 1.8s ease;
-        }
-        #wishText.show {
-            opacity: 1;
-            transform: translateY(0);
-            filter: blur(0);
-        }
-        #wishText .name {
-            display: block;
-            font-size: clamp(30px, 6.4vw, 60px);
-            font-weight: 700;
-            letter-spacing: 0.16em;
-            text-indent: 0.16em;
-            background: linear-gradient(90deg, #ffd76e, #ff9a5a, #ff7ac0, #8f7bff, #ffd76e);
-            background-size: 300% 100%;
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            -webkit-text-fill-color: transparent;
-            animation: shine 5s linear infinite;
-            filter: drop-shadow(0 0 18px rgba(255, 180, 120, 0.55));
-        }
-        #wishText .wish {
-            display: block;
-            margin-top: 12px;
-            font-size: clamp(18px, 4vw, 34px);
-            letter-spacing: 0.55em;
-            text-indent: 0.55em;
-            font-weight: 400;
-            color: #ffe6c4;
-            text-shadow:
-                0 0 18px rgba(255, 170, 110, 0.85),
-                0 0 42px rgba(255, 120, 80, 0.45);
-            animation: breathe 3.2s ease-in-out infinite;
-        }
-        @keyframes shine {
-            0%   { background-position: 0% 50%; }
-            100% { background-position: 300% 50%; }
-        }
-        @keyframes breathe {
-            0%, 100% { opacity: 0.82; }
-            50%      { opacity: 1; }
-        }
-
-        /* 移动端底部安全距离 */
-        @media (max-width: 600px) {
-            #wishText { bottom: 5vh; }
+            transition: opacity 1.2s ease;
+            white-space: nowrap;
+            z-index: 10;
         }
     </style>
 </head>
 <body>
-    <!-- 祝福文字容器（名字默认崔梦悦，也支持 ?name=xxx 自定义） -->
-    <div id="wishText">
-        <span class="name">崔梦悦</span>
-        <span class="wish">生日快乐</span>
-    </div>
+    <div id="tip">🕯️ 点击火焰，吹灭蜡烛</div>
 
     <script type="importmap">
         {
@@ -104,20 +55,6 @@
         import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-
-        // ========== 祝福文字：支持 URL 参数自定义名字 ==========
-        // 默认「崔梦悦」，想换名字可用 ?name=张三
-        (function initWishText() {
-            const wishEl = document.getElementById('wishText');
-            if (!wishEl) return;
-            try {
-                const params = new URLSearchParams(location.search);
-                const customName = (params.get('name') || '').trim();
-                if (customName) {
-                    wishEl.querySelector('.name').textContent = customName.slice(0, 12); // 防止超长
-                }
-            } catch (e) { /* 忽略 */ }
-        })();
 
         // ========== 音乐引擎 ==========
         const MUSIC_IDS = '2008308259';
@@ -333,6 +270,9 @@
         let particleActivated = [];
         let particleActivationTime = [];
         let particleSettleDuration = [];
+
+        // ★ 新增：保存粒子原始颜色，供"吹蜡烛"时调暗火焰
+        let cakeColorsBase = null;
 
         function addDiskPoints(count, y, rMin, rMax, biasCenter = 0.3) {
             const pts = [];
@@ -589,7 +529,11 @@
 
             const geometry = new THREE.BufferGeometry();
             geometry.setAttribute('position', new THREE.BufferAttribute(initPosArray, 3));
-            geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(initColors), 3));
+            // ★ 颜色单独建数组，并备份一份原始色，供吹蜡烛时调暗火焰
+            const colorArray = new Float32Array(initColors);
+            geometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
+            cakeColorsBase = colorArray.slice();
+
             const particleMat = new THREE.PointsMaterial({
                 size: 0.038,
                 vertexColors: true,
@@ -696,4 +640,652 @@
                 }
                 const t = elapsed / duration;
                 const factor = elasticEaseOut(t);
-                const sx = sca
+                const sx = scatterPositions[i][0];
+                const sy = scatterPositions[i][1];
+                const sz = scatterPositions[i][2];
+                const tx = cakePositions[i][0];
+                const ty = cakePositions[i][1];
+                const tz = cakePositions[i][2];
+                posArray[i * 3] = sx + (tx - sx) * factor;
+                posArray[i * 3 + 1] = sy + (ty - sy) * factor;
+                posArray[i * 3 + 2] = sz + (tz - sz) * factor;
+                anyUpdated = true;
+            }
+
+            if (anyUpdated) {
+                particleSystem.geometry.attributes.position.needsUpdate = true;
+            }
+        }
+
+        function allParticlesSettled(currentTimeSec) {
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                if (!particleActivated[i]) return false;
+                if ((currentTimeSec - particleActivationTime[i]) < particleSettleDuration[i]) return false;
+            }
+            return true;
+        }
+
+        let bgTime = 0;
+        function animateBackground() {
+            bgTime += 0.012;
+            stars.rotation.y = bgTime * 0.03;
+            stars.rotation.x = Math.sin(bgTime * 0.1) * 0.05;
+            ringParticles.rotation.y += 0.003;
+            ringParticles.rotation.x = Math.sin(bgTime * 0.5) * 0.1;
+            ambientRing.rotation.z += 0.002;
+            ambientRing2.rotation.z -= 0.0015;
+
+            // 更新流星位置
+            shootingStars.forEach(star => {
+                const { line, dir, speed, length, pointsCount, positionsArray } = star;
+                const currentHead = new THREE.Vector3(
+                    positionsArray[(pointsCount-1)*3],
+                    positionsArray[(pointsCount-1)*3+1],
+                    positionsArray[(pointsCount-1)*3+2]
+                );
+                currentHead.add(dir.clone().multiplyScalar(speed));
+                
+                // 超出边界则重置
+                if (currentHead.x < -6 || currentHead.x > 6 || currentHead.y < -4 || currentHead.y > 6 || currentHead.z < -6 || currentHead.z > 4) {
+                    const newStartX = (Math.random() - 0.5) * 10;
+                    const newStartY = (Math.random() - 0.5) * 6 + 1;
+                    const newStartZ = (Math.random() - 0.5) * 6 - 2;
+                    const newDir = new THREE.Vector3(
+                        -0.8 + Math.random() * 0.4,
+                        -0.6 + Math.random() * 0.3,
+                        -0.3 + Math.random() * 0.2
+                    ).normalize();
+                    star.dir.copy(newDir);
+                    for (let j = 0; j < pointsCount; j++) {
+                        const t = j / (pointsCount - 1);
+                        positionsArray[j * 3] = newStartX + newDir.x * t * length;
+                        positionsArray[j * 3 + 1] = newStartY + newDir.y * t * length;
+                        positionsArray[j * 3 + 2] = newStartZ + newDir.z * t * length;
+                    }
+                } else {
+                    for (let j = 0; j < pointsCount; j++) {
+                        const t = j / (pointsCount - 1);
+                        positionsArray[j * 3] = currentHead.x - dir.x * (1 - t) * length;
+                        positionsArray[j * 3 + 1] = currentHead.y - dir.y * (1 - t) * length;
+                        positionsArray[j * 3 + 2] = currentHead.z - dir.z * (1 - t) * length;
+                    }
+                }
+                line.geometry.attributes.position.needsUpdate = true;
+            });
+        }
+
+        function startAnimation() {
+            if (animationStarted) return;
+            animationStarted = true;
+            animStartTime = performance.now();
+            resumeMusic();
+            lastActivatedSortedIndex = -1;
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                particleActivated[i] = false;
+                particleActivationTime[i] = 0;
+            }
+            animPhase = ANIM_PHASE.PRE;
+            scanRingMain.visible = false;
+            scanRingSecondary.visible = false;
+            ambientLight.intensity = 0.08;
+            backLight.intensity = 0.15;
+            fillLight.intensity = 0.1;
+            topHighlight.intensity = 0.05;
+            bloomPass.strength = 0.7;
+            controls.autoRotate = false;
+        }
+
+        // 用户交互触发
+        window.addEventListener('click', startAnimation);
+        window.addEventListener('touchstart', startAnimation);
+
+        initParticleSystem();
+        preSortParticles();
+        createScanRings();
+
+        /* ==================================================================
+           ★★★ 新增模块：吹蜡烛 · 冒烟文字 · 烟花 · 重新点亮 ★★★
+           ================================================================== */
+
+        const BIRTHDAY_TEXT = '崔梦悦，生日快乐';
+        const tipEl = document.getElementById('tip');
+
+        // ---------- 火焰粒子索引（用于调暗/点亮） ----------
+        const flameIndices = [];     // 火焰粒子的下标
+        const flameDrift = [];       // 每个火焰粒子被"吹散"时的漂移方向（扁平数组 xyz）
+        let flameFade = 1;           // 1 = 燃烧中，0 = 完全熄灭
+        let lastFlameFade = 1;
+
+        function buildFlameData() {
+            flameIndices.length = 0;
+            flameDrift.length = 0;
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const r = cakeColorsBase[i * 3];
+                const b = cakeColorsBase[i * 3 + 2];
+                // 火焰色特征：R 接近 1.0，B 固定 0.18，且高度在蜡烛顶端之上
+                if (r > 0.99 && b < 0.3 && cakePositions[i][1] > 1.5) {
+                    flameIndices.push(i);
+                    const dx = cakePositions[i][0];
+                    const dz = cakePositions[i][2];
+                    const len = Math.hypot(dx, dz) || 1;
+                    // 向外 + 向上漂散
+                    flameDrift.push(
+                        (dx / len) * (0.05 + Math.random() * 0.12) + (Math.random() - 0.5) * 0.12,
+                        0.10 + Math.random() * 0.28,
+                        (dz / len) * (0.05 + Math.random() * 0.12) + (Math.random() - 0.5) * 0.12
+                    );
+                }
+            }
+        }
+
+        // 根据 flameFade 更新火焰粒子的颜色（调暗）与位置（吹散）
+        function applyFlameState() {
+            if (flameFade === 1 && lastFlameFade === 1) return; // 完全点燃且无变化，跳过
+            lastFlameFade = flameFade;
+
+            const posAttr = particleSystem.geometry.attributes.position;
+            const colAttr = particleSystem.geometry.attributes.color;
+            const pa = posAttr.array;
+            const ca = colAttr.array;
+            const inv = 1 - flameFade;
+
+            for (let k = 0; k < flameIndices.length; k++) {
+                const i = flameIndices[k];
+                pa[i * 3]     = cakePositions[i][0] + flameDrift[k * 3]     * inv;
+                pa[i * 3 + 1] = cakePositions[i][1] + flameDrift[k * 3 + 1] * inv;
+                pa[i * 3 + 2] = cakePositions[i][2] + flameDrift[k * 3 + 2] * inv;
+                ca[i * 3]     = cakeColorsBase[i * 3]     * flameFade;
+                ca[i * 3 + 1] = cakeColorsBase[i * 3 + 1] * flameFade;
+                ca[i * 3 + 2] = cakeColorsBase[i * 3 + 2] * flameFade;
+            }
+            posAttr.needsUpdate = true;
+            colAttr.needsUpdate = true;
+        }
+
+        // ---------- 烟雾粒子系统 ----------
+        const SMOKE_MAX = 360;
+        const smokePos = new Float32Array(SMOKE_MAX * 3);
+        const smokeCol = new Float32Array(SMOKE_MAX * 3);
+        const smokeVel = new Float32Array(SMOKE_MAX * 3);
+        const smokeBaseCol = new Float32Array(SMOKE_MAX * 3);
+        const smokeLife = new Float32Array(SMOKE_MAX);
+        const smokeMaxLife = new Float32Array(SMOKE_MAX);
+        let smokeCursor = 0;
+
+        const smokeGeo = new THREE.BufferGeometry();
+        smokeGeo.setAttribute('position', new THREE.BufferAttribute(smokePos, 3));
+        smokeGeo.setAttribute('color', new THREE.BufferAttribute(smokeCol, 3));
+        const smokeMat = new THREE.PointsMaterial({
+            size: 0.1,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            depthWrite: false
+        });
+        const smokePoints = new THREE.Points(smokeGeo, smokeMat);
+        scene.add(smokePoints);
+        // 初始位置挪远，避免出现在原点
+        for (let i = 0; i < SMOKE_MAX; i++) smokePos[i * 3 + 1] = -999;
+
+        function spawnSmokeParticle() {
+            const i = smokeCursor;
+            smokeCursor = (smokeCursor + 1) % SMOKE_MAX;
+
+            const ang = Math.random() * Math.PI * 2;
+            const rad = Math.random() * 0.07;
+            smokePos[i * 3]     = Math.cos(ang) * rad;
+            smokePos[i * 3 + 1] = 1.48 + Math.random() * 0.10;
+            smokePos[i * 3 + 2] = Math.sin(ang) * rad;
+
+            smokeVel[i * 3]     = (Math.random() - 0.5) * 0.28;
+            smokeVel[i * 3 + 1] = 0.42 + Math.random() * 0.55;
+            smokeVel[i * 3 + 2] = (Math.random() - 0.5) * 0.28;
+
+            smokeLife[i] = smokeMaxLife[i] = 2.0 + Math.random() * 1.5;
+
+            const c = 0.35 + Math.random() * 0.25; // 灰白，别太亮否则 Bloom 会过曝
+            smokeBaseCol[i * 3]     = c * 0.85;
+            smokeBaseCol[i * 3 + 1] = c * 0.92;
+            smokeBaseCol[i * 3 + 2] = c * 1.0;
+        }
+
+        function updateSmoke(dt) {
+            let active = false;
+            for (let i = 0; i < SMOKE_MAX; i++) {
+                if (smokeLife[i] <= 0) continue;
+                active = true;
+                smokeLife[i] -= dt;
+                if (smokeLife[i] <= 0) {
+                    smokeCol[i * 3] = smokeCol[i * 3 + 1] = smokeCol[i * 3 + 2] = 0;
+                    continue;
+                }
+                const damp = Math.max(0, 1 - 0.55 * dt);
+                smokeVel[i * 3] *= damp;
+                smokeVel[i * 3 + 2] *= damp;
+                smokePos[i * 3]     += smokeVel[i * 3]     * dt;
+                smokePos[i * 3 + 1] += smokeVel[i * 3 + 1] * dt;
+                smokePos[i * 3 + 2] += smokeVel[i * 3 + 2] * dt;
+
+                const k = smokeLife[i] / smokeMaxLife[i];
+                const a = Math.pow(k, 0.75);
+                smokeCol[i * 3]     = smokeBaseCol[i * 3]     * a;
+                smokeCol[i * 3 + 1] = smokeBaseCol[i * 3 + 1] * a;
+                smokeCol[i * 3 + 2] = smokeBaseCol[i * 3 + 2] * a;
+            }
+            if (active) {
+                smokeGeo.attributes.position.needsUpdate = true;
+                smokeGeo.attributes.color.needsUpdate = true;
+            }
+        }
+
+        // ---------- 烟花粒子系统 ----------
+        const FW_MAX = 3000;
+        const fwPos = new Float32Array(FW_MAX * 3);
+        const fwCol = new Float32Array(FW_MAX * 3);
+        const fwVel = new Float32Array(FW_MAX * 3);
+        const fwBaseCol = new Float32Array(FW_MAX * 3);
+        const fwLife = new Float32Array(FW_MAX);
+        const fwMaxLife = new Float32Array(FW_MAX);
+        let fwCursor = 0;
+
+        const fwGeo = new THREE.BufferGeometry();
+        fwGeo.setAttribute('position', new THREE.BufferAttribute(fwPos, 3));
+        fwGeo.setAttribute('color', new THREE.BufferAttribute(fwCol, 3));
+        const fwMat = new THREE.PointsMaterial({
+            size: 0.07,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            depthWrite: false
+        });
+        const fwPoints = new THREE.Points(fwGeo, fwMat);
+        scene.add(fwPoints);
+        for (let i = 0; i < FW_MAX; i++) fwPos[i * 3 + 1] = -999;
+
+        const fwColorTmp = new THREE.Color();
+
+        function launchFirework() {
+            const cx = (Math.random() - 0.5) * 7;
+            const cy = 2.1 + Math.random() * 2.0;
+            const cz = -2.0 + Math.random() * 3.0;
+            const hue = Math.random();
+            const count = 140 + Math.floor(Math.random() * 70);
+
+            for (let n = 0; n < count; n++) {
+                const i = fwCursor;
+                fwCursor = (fwCursor + 1) % FW_MAX;
+
+                // 球面均匀随机方向
+                const u = Math.random() * 2 - 1;
+                const theta = Math.random() * Math.PI * 2;
+                const s = Math.sqrt(1 - u * u);
+                const sp = 2.2 + Math.random() * 3.4;
+
+                fwVel[i * 3]     = s * Math.cos(theta) * sp;
+                fwVel[i * 3 + 1] = u * sp;
+                fwVel[i * 3 + 2] = s * Math.sin(theta) * sp;
+
+                fwPos[i * 3]     = cx;
+                fwPos[i * 3 + 1] = cy;
+                fwPos[i * 3 + 2] = cz;
+
+                fwColorTmp.setHSL((hue + Math.random() * 0.08) % 1, 0.92, 0.62);
+                fwBaseCol[i * 3]     = fwColorTmp.r;
+                fwBaseCol[i * 3 + 1] = fwColorTmp.g;
+                fwBaseCol[i * 3 + 2] = fwColorTmp.b;
+
+                fwLife[i] = fwMaxLife[i] = 1.3 + Math.random() * 0.9;
+            }
+        }
+
+        function updateFireworks(dt) {
+            let active = false;
+            for (let i = 0; i < FW_MAX; i++) {
+                if (fwLife[i] <= 0) continue;
+                active = true;
+                fwLife[i] -= dt;
+                if (fwLife[i] <= 0) {
+                    fwCol[i * 3] = fwCol[i * 3 + 1] = fwCol[i * 3 + 2] = 0;
+                    continue;
+                }
+                const drag = Math.max(0, 1 - 1.4 * dt);
+                fwVel[i * 3]     *= drag;
+                fwVel[i * 3 + 1] = fwVel[i * 3 + 1] * drag - 3.0 * dt; // 重力
+                fwVel[i * 3 + 2] *= drag;
+
+                fwPos[i * 3]     += fwVel[i * 3]     * dt;
+                fwPos[i * 3 + 1] += fwVel[i * 3 + 1] * dt;
+                fwPos[i * 3 + 2] += fwVel[i * 3 + 2] * dt;
+
+                const k = fwLife[i] / fwMaxLife[i];
+                const a = k * k; // 尾部快速衰减
+                fwCol[i * 3]     = fwBaseCol[i * 3]     * a;
+                fwCol[i * 3 + 1] = fwBaseCol[i * 3 + 1] * a;
+                fwCol[i * 3 + 2] = fwBaseCol[i * 3 + 2] * a;
+            }
+            if (active) {
+                fwGeo.attributes.position.needsUpdate = true;
+                fwGeo.attributes.color.needsUpdate = true;
+            }
+        }
+
+        // ---------- 文字精灵（“崔梦悦，生日快乐”） ----------
+        let textSprite = null;
+
+        function createTextSprite(text) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1200;
+            canvas.height = 300;
+            const ctx = canvas.getContext('2d');
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = 'bold 104px "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif';
+
+            // 渐变字色：暖橙 → 粉 → 淡蓝 → 金
+            const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+            grad.addColorStop(0.00, '#ffe3b0');
+            grad.addColorStop(0.30, '#ff9ad5');
+            grad.addColorStop(0.62, '#a8d0ff');
+            grad.addColorStop(1.00, '#ffe9a8');
+
+            // 外发光
+            ctx.shadowColor = 'rgba(255, 170, 220, 0.95)';
+            ctx.shadowBlur = 42;
+            ctx.fillStyle = grad;
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+            // 再描一遍加强亮芯
+            ctx.shadowBlur = 16;
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.minFilter = THREE.LinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            tex.needsUpdate = true;
+
+            const mat = new THREE.SpriteMaterial({
+                map: tex,
+                transparent: true,
+                opacity: 0,
+                depthTest: false,
+                depthWrite: false
+            });
+            const sprite = new THREE.Sprite(mat);
+            sprite.scale.set(3.2, 0.8, 1);
+            sprite.position.set(0, 1.7, 0);
+            sprite.visible = false;
+            sprite.renderOrder = 20;
+            return sprite;
+        }
+
+        // ---------- 演出时间线 ----------
+        let showStart = -1;   // -1 表示没有演出进行中
+        let smokeAccum = 0;
+        let fwTimer = 0;
+
+        const flameAnchor = new THREE.Vector3(0, 1.62, 0); // 火焰世界坐标（用于点击判定）
+        const projTmp = new THREE.Vector3();
+
+        function isClickOnFlame(clientX, clientY) {
+            projTmp.copy(flameAnchor).project(camera);
+            if (projTmp.z > 1) return false; // 在相机背后
+            const sx = (projTmp.x * 0.5 + 0.5) * window.innerWidth;
+            const sy = (-projTmp.y * 0.5 + 0.5) * window.innerHeight;
+            // 命中半径：屏幕短边的 13%，至少 56px，对手机友好
+            const r = Math.max(56, Math.min(window.innerWidth, window.innerHeight) * 0.13);
+            const dx = clientX - sx;
+            const dy = clientY - sy;
+            return dx * dx + dy * dy <= r * r;
+        }
+
+        function startCandleShow(now) {
+            showStart = now;
+            smokeAccum = 0;
+            fwTimer = 0;
+            if (tipEl) tipEl.style.opacity = '0';
+        }
+
+        function updateCandleShow(now, dt) {
+            if (showStart < 0) return;
+            const t = (now - showStart) / 1000;
+
+            // ---- 火焰：吹灭 0.75s / 熄灭保持 / 重新点燃 0.9s ----
+            let fade;
+            if (t < 0.75) {
+                fade = 1 - t / 0.75;
+            } else if (t < 6.2) {
+                fade = 0;
+            } else if (t < 7.1) {
+                fade = (t - 6.2) / 0.9;
+            } else {
+                fade = 1;
+            }
+            flameFade = Math.max(0, Math.min(1, fade));
+
+            // ---- 冒烟：0.3s ~ 2.8s 持续吐烟 ----
+            if (t > 0.3 && t < 2.8) {
+                smokeAccum += dt * 48;
+                while (smokeAccum >= 1) {
+                    spawnSmokeParticle();
+                    smokeAccum -= 1;
+                }
+            }
+
+            // ---- 文字：0.9s 浮现 → 5.7s 淡出 ----
+            if (textSprite) {
+                let appear = 0;
+                if (t > 0.9) appear = Math.min((t - 0.9) / 1.6, 1);
+                let disappear = 0;
+                if (t > 5.7) disappear = Math.min((t - 5.7) / 0.9, 1);
+
+                const op = appear * (1 - disappear);
+                textSprite.material.opacity = op;
+                textSprite.visible = op > 0.01;
+                // 缓慢上升
+                textSprite.position.y = 1.55 + appear * 1.0 - disappear * 0.25;
+                const s = 0.72 + appear * 0.28;
+                textSprite.scale.set(3.2 * s, 0.8 * s, 1);
+            }
+
+            // ---- 烟花：2.3s ~ 6.2s，每隔一小段放一发 ----
+            if (t > 2.3 && t < 6.2) {
+                fwTimer -= dt;
+                if (fwTimer <= 0) {
+                    launchFirework();
+                    fwTimer = 0.40 + Math.random() * 0.28;
+                }
+            }
+
+            // ---- 演出结束 ----
+            if (t > 7.3) {
+                showStart = -1;
+                flameFade = 1;
+                if (textSprite) {
+                    textSprite.material.opacity = 0;
+                    textSprite.visible = false;
+                }
+                if (tipEl) tipEl.style.opacity = '1'; // 可以再吹一次
+            }
+        }
+
+        function updateCandleSystem(now, dt) {
+            updateCandleShow(now, dt);
+            applyFlameState();
+            updateSmoke(dt);
+            updateFireworks(dt);
+        }
+
+        function initBirthdayFeature() {
+            buildFlameData();
+            textSprite = createTextSprite(BIRTHDAY_TEXT);
+            scene.add(textSprite);
+        }
+
+        // ---------- 点击火焰的交互（区分"点击"和"拖动旋转"） ----------
+        let pointerDownPos = null;
+        window.addEventListener('pointerdown', (e) => {
+            pointerDownPos = { x: e.clientX, y: e.clientY };
+        });
+        window.addEventListener('pointerup', (e) => {
+            if (!pointerDownPos) return;
+            const dx = e.clientX - pointerDownPos.x;
+            const dy = e.clientY - pointerDownPos.y;
+            pointerDownPos = null;
+            if (dx * dx + dy * dy > 144) return; // 移动超过 12px 视为拖动
+
+            if (!animationStarted) return;                 // 首次点击交给 startAnimation
+            if (animPhase !== ANIM_PHASE.DONE) return;     // 蛋糕还没聚合完成
+            if (showStart >= 0) return;                    // 演出进行中，忽略
+            if (isClickOnFlame(e.clientX, e.clientY)) {
+                startCandleShow(performance.now());
+            }
+        });
+
+        initBirthdayFeature();
+
+        /* ==================================================================
+           主渲染循环
+           ================================================================== */
+
+        let lastTimestamp = 0;
+
+        function renderLoop(timestamp) {
+            requestAnimationFrame(renderLoop);
+
+            // 统一计算帧间隔（秒），最大 0.05 防止切后台后跳变
+            const dt = lastTimestamp ? Math.min((timestamp - lastTimestamp) / 1000, 0.05) : 0.016;
+            lastTimestamp = timestamp;
+
+            if (!animationStarted) {
+                animateBackground();
+                effectComposer.render();
+                return;
+            }
+
+            const currentTimeSec = (timestamp - animStartTime) / 1000;
+
+            if (animPhase === ANIM_PHASE.PRE) {
+                const preProgress = Math.min(currentTimeSec / SCAN_START_DELAY, 1.0);
+                const easeIn = 1 - Math.pow(1 - preProgress, 3);
+
+                ambientLight.intensity = 0.08 + (0.5 - 0.08) * easeIn;
+                backLight.intensity = 0.15 + (0.5 - 0.15) * easeIn;
+                fillLight.intensity = 0.1 + (0.35 - 0.1) * easeIn;
+                topHighlight.intensity = 0.05 + (0.25 - 0.05) * easeIn;
+
+                if (preProgress > 0.4) {
+                    const ringFadeIn = (preProgress - 0.4) / 0.6;
+                    scanRingMain.visible = true;
+                    scanRingSecondary.visible = true;
+                    scanRingMainMat.opacity = 0.85 * ringFadeIn;
+                    scanRingSecondaryMat.opacity = 0.55 * ringFadeIn;
+                    scanRingMain.position.y = SCAN_Y_START;
+                    scanRingSecondary.position.y = SCAN_Y_START - 0.06;
+                }
+
+                if (particleSystem) particleSystem.rotation.y += 0.0015;
+
+                if (currentTimeSec >= SCAN_START_DELAY) {
+                    animPhase = ANIM_PHASE.SCANNING;
+                    scanRingMain.position.y = SCAN_Y_START;
+                    scanRingSecondary.position.y = SCAN_Y_START - 0.06;
+                    scanRingMain.visible = true;
+                    scanRingSecondary.visible = true;
+                    scanRingMainMat.opacity = 0.85;
+                    scanRingSecondaryMat.opacity = 0.55;
+                    lastActivatedSortedIndex = -1;
+                    batchActivateParticles(SCAN_Y_START);
+                }
+            } else if (animPhase === ANIM_PHASE.SCANNING) {
+                const scanElapsed = currentTimeSec - SCAN_START_DELAY;
+                scanProgress = Math.min(scanElapsed / SCAN_DURATION, 1.0);
+
+                const scanY = SCAN_Y_START + scanProgress * (SCAN_Y_END - SCAN_Y_START);
+                scanRingMain.position.y = scanY;
+                scanRingSecondary.position.y = scanY - 0.07 - scanProgress * 0.04;
+
+                const mainRadius = getScanRingRadius(scanY);
+                const secondaryRadius = mainRadius * 1.06;
+                scanRingMain.scale.set(mainRadius, mainRadius, mainRadius);
+                scanRingSecondary.scale.set(secondaryRadius, secondaryRadius, secondaryRadius);
+
+                batchActivateParticles(scanY);
+                updateParticlePositions(currentTimeSec);
+
+                if (particleSystem) particleSystem.rotation.y += 0.0012;
+
+                if (scanProgress >= 1.0) {
+                    animPhase = ANIM_PHASE.SETTLING;
+                    scanRingFadeOutStart = true;
+                    scanRingFadeOutTime = currentTimeSec;
+                    for (let i = 0; i < PARTICLE_COUNT; i++) {
+                        if (!particleActivated[i]) {
+                            particleActivated[i] = true;
+                            particleActivationTime[i] = currentTimeSec;
+                        }
+                    }
+                }
+            } else if (animPhase === ANIM_PHASE.SETTLING) {
+                const fadeElapsed = currentTimeSec - scanRingFadeOutTime;
+                const fadeProgress = Math.min(fadeElapsed / SCAN_FADE_DURATION, 1.0);
+
+                if (scanRingFadeOutStart) {
+                    scanRingMainMat.opacity = 0.85 * (1 - fadeProgress);
+                    scanRingSecondaryMat.opacity = 0.55 * (1 - fadeProgress);
+                    const expandScale = 1 + fadeProgress * 2.5;
+                    const baseMR = getScanRingRadius(SCAN_Y_END);
+                    const baseSR = baseMR * 1.06;
+                    scanRingMain.scale.set(baseMR * expandScale, baseMR * expandScale, baseMR * expandScale);
+                    scanRingSecondary.scale.set(baseSR * expandScale, baseSR * expandScale, baseSR * expandScale);
+                    scanRingMain.position.y = SCAN_Y_END + fadeProgress * 0.3;
+                    scanRingSecondary.position.y = SCAN_Y_END + fadeProgress * 0.25;
+                }
+
+                updateParticlePositions(currentTimeSec);
+                if (particleSystem) particleSystem.rotation.y *= 0.995;
+
+                if (allParticlesSettled(currentTimeSec) && fadeProgress >= 0.75) {
+                    animPhase = ANIM_PHASE.DONE;
+                    scanRingMain.visible = false;
+                    scanRingSecondary.visible = false;
+                    scene.remove(scanRingMain);
+                    scene.remove(scanRingSecondary);
+                    scanRingMain = null;
+                    scanRingSecondary = null;
+                    controls.autoRotate = true;
+                    bloomPass.strength = 0.7;
+                    if (tipEl) tipEl.style.opacity = '1';   // ★ 显示"点击火焰"提示
+                    console.log("星辰");
+                }
+            } else if (animPhase === ANIM_PHASE.DONE) {
+                updateParticlePositions(currentTimeSec);
+            }
+
+            if (animPhase !== ANIM_PHASE.PRE) {
+                backLight.intensity = 0.5 + Math.sin(bgTime * 0.8) * 0.15;
+                topHighlight.intensity = 0.25 + Math.sin(bgTime * 1.1) * 0.1;
+            }
+
+            // ★ 吹蜡烛 / 冒烟 / 文字 / 烟花 / 重燃
+            updateCandleSystem(timestamp, dt);
+
+            controls.update();
+            animateBackground();
+            effectComposer.render();
+        }
+
+        requestAnimationFrame(renderLoop);
+
+        window.addEventListener('resize', onWindowResize);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            effectComposer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        console.log("星辰制作");
+    </script>
+</body>
+</html>
